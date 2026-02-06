@@ -1,0 +1,162 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                          String      @id @default(cuid())
+  name                        String
+  email                       String      @unique
+  password                    String
+  roles                       UserRole[]  @default([INSTRUCTOR])
+  isExpatriate                Boolean?    
+  createdAt                   DateTime    @default(now())
+  updatedAt                   DateTime    @updatedAt
+  emailVerified               Boolean     @default(false)
+  resetPasswordToken          String?     @unique
+  resetPasswordTokenExpires   DateTime?
+  resetPasswordOtp            String?
+  resetPasswordOtpExpires     DateTime?
+  emailVerificationOtp        String?
+  emailVerificationOtpExpires DateTime?
+  sessions                    Session[]
+}
+
+model Campus {
+  id         String      @id @default(cuid())
+  name       String      @unique
+  city       String
+  classrooms Classroom[]
+  colleges   College[]   @relation("CampusColleges")
+}
+
+model College {
+  id          String       @id @default(cuid())
+  name        String
+  campusId    String?
+  campus      Campus?      @relation("CampusColleges", fields: [campusId], references: [id])
+  courses     Course[]
+  departments Department[]
+}
+
+model Department {
+  id            String         @id @default(cuid())
+  name          String
+  collegeId     String
+  code          String
+  courses       Course[]
+  college       College        @relation(fields: [collegeId], references: [id])
+  instructors   Instructor[]
+  studentGroups StudentGroup[]
+}
+
+model Course {
+  id           String       @id @default(cuid())
+  code         String       @unique
+  departmentId String
+  name         String
+  type         CourseType
+  collegeId    String
+  days         Int
+  hoursPerDay  Int
+  instructorId String?
+  year         Int
+  college      College      @relation(fields: [collegeId], references: [id])
+  department   Department   @relation(fields: [departmentId], references: [id])
+  instructor   Instructor?  @relation("AssignedInstructor", fields: [instructorId], references: [id])
+  sessions     Session[]
+  instructors  Instructor[] @relation("AdditionalInstructors")
+}
+
+model Instructor {
+  id              String     @id @default(cuid())
+  name            String
+  departmentId    String
+  day             DayOfWeek?
+  startTime       DateTime?
+  endTime         DateTime?
+  assignedCourses Course[]   @relation("AssignedInstructor")
+  department      Department @relation(fields: [departmentId], references: [id])
+  otherCourses    Course[]   @relation("AdditionalInstructors")
+}
+
+model StudentGroup {
+  id           String     @id @default(cuid())
+  name         String
+  departmentId String
+  year         Int
+  studentCount Int
+  department   Department @relation(fields: [departmentId], references: [id])
+}
+
+model Classroom {
+  id       String        @id @default(cuid())
+  name     String
+  capacity Int
+  type     ClassroomType
+  campusId String
+  campus   Campus        @relation(fields: [campusId], references: [id])
+  sessions Session[]
+
+  @@unique([name, campusId])
+}
+
+model Schedule {
+  id          String    @id @default(cuid())
+  semester    String
+  generatedBy String
+  createdAt   DateTime  @default(now())
+  sessions    Session[]
+}
+
+model Session {
+  id           String      @id @default(cuid())
+  name         String
+  type         SessionType @default(LECTURE)
+  day          DayOfWeek?
+  startTime    DateTime?
+  endTime      DateTime?
+  studentCount Int         @default(0)
+  courseId     String
+  instructorId String?
+  classroomId  String?
+  scheduleId   String?
+  classroom    Classroom?  @relation(fields: [classroomId], references: [id])
+  course       Course      @relation(fields: [courseId], references: [id])
+  instructor   User?       @relation(fields: [instructorId], references: [id])
+  schedule     Schedule?   @relation(fields: [scheduleId], references: [id])
+}
+
+enum DayOfWeek {
+  SATURDAY
+  SUNDAY
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+}
+
+enum SessionType {
+  LECTURE
+  SECTION
+}
+
+enum CourseType {
+  THEORETICAL
+  PRACTICAL
+}
+
+enum ClassroomType {
+  LECTURE_HALL
+  LAB
+}
+
+enum UserRole {
+  INSTRUCTOR
+  ADMIN
+  TA
+}
